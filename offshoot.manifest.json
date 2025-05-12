@@ -1,0 +1,34 @@
+{
+    "plugins": {
+        "SerpentMiniMetroGamePlugin": {
+            "name": "SerpentMiniMetroGamePlugin",
+            "version": "0.1.0",
+            "files": [
+                {
+                    "path": "serpent_mini_metro_game.py",
+                    "pluggable": "Game"
+                }
+            ],
+            "plugins": [],
+            "libraries": [],
+            "config": {
+                "fps": 2
+            }
+        },
+        "SerpentMiniMetroAgent_BCRLGameAgentPlugin": {
+            "name": "SerpentMiniMetroAgent_BCRLGameAgentPlugin",
+            "version": "0.1.0",
+            "files": [
+                {
+                    "path": "serpent_MiniMetroAgent_BCRL_game_agent.py",
+                    "pluggable": "GameAgent"
+                }
+            ],
+            "plugins": [],
+            "libraries": [],
+            "config": {
+                "frame_handler": "PLAY"
+            }
+        }
+    }
+}
