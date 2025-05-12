@@ -172,3 +172,16 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+# Python virtual-env
+.venv_serpentai/
+
+# macOS junk
+.DS_Store
+
+
+# IDE settings
+.idea/
+
+# Compiled / cached Python artefacts
+__pycache__/
+*.py[cod]
