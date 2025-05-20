@@ -1,4 +1,4 @@
-SerpentMiniMetroAgent_BCRLGameAgentPlugin:
-  frame_handler: PLAY
 SerpentMiniMetroGamePlugin:
   fps: 2
+SerpentMiniMetro_RL_AgentGameAgentPlugin:
+  frame_handler: PLAY
