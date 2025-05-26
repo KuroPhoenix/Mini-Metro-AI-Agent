@@ -185,3 +185,11 @@ cython_debug/
 # Compiled / cached Python artefacts
 __pycache__/
 *.py[cod]
+
+#Backup
+Backup/
+Unused_stuff/
+PyTorch-YOLOv3/
+#Zip Files
+*.zip
+

@@ -1,5 +1,5 @@
 # plugins/SerpentMiniMetro_RL_AgentGameAgentPlugin/files/actions.py
-from enum import IntEnum, auto
+from enum import IntEnum, auto, Enum
 from dataclasses import dataclass
 from typing import Optional
 
@@ -80,6 +80,17 @@ class Reward(IntEnum):
     BRIDGE_ONE   = 5
     BRIDGE_TWO   = 6
 
+class LineColor(IntEnum):
+    RED = 0
+    GREEN = 1
+    BLUE = 2
+    YELLOW = 3
+    PURPLE = 4
+    CYAN = 5
+    PEACH = 6
+    MAGENTA = 7
+    BEIGE = 8
+
 
 # ────────────────────────────────────────────────────────────────
 # 1.3 PARAMETRISED ACTION  (the object passed around)
@@ -88,3 +99,13 @@ class Reward(IntEnum):
 class PAction:          # “parameterised action”
     verb: Verb
     arg: Optional[int] = None      # use the matching enum above
+
+
+# def choose_action(self):
+#     # example: if a station is overcrowded, extend a free line
+#     for st in self.world.stations:
+#         if st.passenger_load > 6 and not st.is_interchange:
+#             best_line = self.world.free_line_to(st)
+#             if best_line:
+#                 return PAction(Verb.EXTEND_LINE, (best_line, st))
+#     return PAction(Verb.NO_OP, None)
