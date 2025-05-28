@@ -1,0 +1,27 @@
+#
+pyautogui
+
+# cv2
+opencv-python
+
+
+# CNN model
+numpy
+pandas
+torch
+tqdm
+timm
+typing
+scikit-learn
+loguru
+matplotlib
+
+# ocr
+pytesseract
+
+# check region of image
+numpy==1.12.1
+Kivy
+pillow
+cython
+# spritex       # there is a problem installing, please run "python -m pip install -e ."
