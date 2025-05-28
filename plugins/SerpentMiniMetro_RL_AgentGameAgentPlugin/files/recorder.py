@@ -2,7 +2,10 @@
 import csv, os
 from time import time
 from sneakysnek.recorder import Recorder
-from sneakysnek.events    import KeyboardEvent, MouseEvent
+from sneakysnek.mouse_buttons    import MouseButton
+from sneakysnek.mouse_event import MouseEvent, MouseEvents
+from sneakysnek.keyboard_event import KeyboardEvent, KeyboardEvents
+from sneakysnek.keyboard_keys import KeyboardKey
 
 class CSVActionRecorder:
     """
