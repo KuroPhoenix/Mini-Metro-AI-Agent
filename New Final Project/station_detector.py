@@ -9,7 +9,12 @@ model = inference.get_model("minimetrostation/1")
 
 def annotate_stations(
     image: Union[str, np.ndarray]
-) -> Tuple[np.ndarray, List[Tuple[int, int, int, int]]]:
+) -> Tuple[
+        np.ndarray,                       # annotated image
+        List[Tuple[int, int, int, int]],  # bounding boxes
+        List[str],                        # shape / class labels  ← NEW
+    ]:
+
     """
     Detects stations in `image`, draws the bounding boxes & labels, and
     returns (1) the annotated image and (2) the list of pixel coordinates
@@ -42,7 +47,7 @@ def annotate_stations(
     predictions = model.infer(image, confidence=0.84)[0]
     # load the results into the supervision Detections api
     detections = sv.Detections.from_inference(predictions)
-    labels = [prediction.class_name for prediction in predictions.predictions]
+    labels: List[str] = [prediction.class_name for prediction in predictions.predictions]
 
     # create supervision annotators
     boxes: List[Tuple[int, int, int, int]] = [
@@ -57,4 +62,5 @@ def annotate_stations(
 
     # display the image
     sv.plot_image(annotated_image)
-    return annotated_image, boxes
+    return annotated_image, boxes, labels
+

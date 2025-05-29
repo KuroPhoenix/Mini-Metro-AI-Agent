@@ -14,7 +14,7 @@ for episode in range(3):                                    # you decide how man
     print(f"\n🎮  Human Episode {episode+1}")
     env.reset()
     trajectory = []                                         # [(s, a, r, s')]
-    state = env.get_symbolic_state()
+    state = env.perceive()
 
     for step in range(ep_length):
         # --------------------------------------------------------------

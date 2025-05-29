@@ -1,4 +1,4 @@
-# plugins/SerpentMiniMetro_RL_AgentGameAgentPlugin/files/actions.py
+# plugins/SerpentMiniMetro_RL_AgentGameAgentPlugin/files/macro_definition.py
 from enum import IntEnum, auto, Enum
 from dataclasses import dataclass
 from typing import Optional
@@ -20,15 +20,16 @@ class Verb(IntEnum):
 
     # station-level actions
     SELECT_STATION    = 6          # arg = StationShape enum
-    SELECT_LINE_END   = 7          # arg = StationShape enum
+    SELECT_LINE       = 7          # arg = StationShape enum
     DRAG_TRACK        = 8          # arg = StationShape enum (target)
+    DISCONNECT_STATION = 9
 
     # pool & upgrades
-    PICK_POOL_ITEM    = 9          # arg = PoolItem enum
-    DRAG_POOL_ITEM    = 10         # arg = PoolItem enum  (onto line / station)
-    CHOOSE_REWARD     = 11         # arg = Reward enum
+    PICK_POOL_ITEM    = 10         # arg = PoolItem enum
+    DRAG_POOL_ITEM    = 11         # arg = PoolItem enum  (onto line / station)
+    CHOOSE_REWARD     = 12         # arg = Reward enum
 
-    NO_OP             = 12         # “do nothing” this frame
+    NO_OP             = 13         # “do nothing” this frame
 
 
 # ────────────────────────────────────────────────────────────────
@@ -36,7 +37,10 @@ class Verb(IntEnum):
 # ────────────────────────────────────────────────────────────────
 class Speed(IntEnum):
     NORMAL  = 0                # your “speed-one”
-    FASTER  = 1                  # your “speed-two”
+    FASTER  = 1                # your “speed-two”
+    PAUSE   = 2
+    CLOCK   = 3
+    UNPAUSE = 4
 
 
 class StationShape(IntEnum):
@@ -67,18 +71,21 @@ class InterchangeStationShape(IntEnum):
 class PoolItem(IntEnum):
     TRAIN        = 0
     CARRIAGE     = 1
-    HUB          = 2
+    INTERCHANGE          = 2
     SHINKANSEN   = 3
 
 
 class Reward(IntEnum):
     TRAIN        = 0
     CARRIAGE     = 1
-    HUB          = 2
+    INTERCHANGE  = 2
     SHINKANSEN   = 3
     NEW_LINE     = 4
     BRIDGE_ONE   = 5
     BRIDGE_TWO   = 6
+    LEFT         = 7
+    RIGHT        = 8
+    CENTRE       = 9
 
 class LineColor(IntEnum):
     RED = 0
@@ -98,8 +105,8 @@ class LineColor(IntEnum):
 @dataclass(frozen=True)
 class PAction:          # “parameterised action”
     verb: Verb
-    arg: Optional[int] = None      # use the matching enum above
-
+    arg: Optional[int] = None     # use the matching enum above
+    arg2: Optional[int] = None
 
 # def choose_action(self):
 #     # example: if a station is overcrowded, extend a free line
