@@ -1,12 +1,10 @@
 import PIL
-import pyautogui
 import cv2
 import numpy as np
-import time
 import enum
 from typing import List, Tuple, Union
 import pytesseract
-import ocr   # ← your existing OCR wrapper
+from . import ocr   # ← your existing OCR wrapper
 
 class Context(enum.IntEnum):
     IN_GAME     = 0       # No reward banner

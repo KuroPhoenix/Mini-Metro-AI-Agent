@@ -3,6 +3,8 @@ import pytesseract
 import os
 import numpy as np
 import re
+from PIL import Image
+import numpy as np
 # (x, y, w, h) of the passenger counter – adjust once and reuse
 COUNTER_ROI = (1063, 57, 56, 21)
 
@@ -34,9 +36,9 @@ def extract_text_from_region(image: np.ndarray, region: tuple): #image: ndarray
     print("raw roi.shape:", roi.shape)
 
     ###
-    cv2.imshow("Selected roi", roi)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    # cv2.imshow("Selected roi", roi)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
 
     # (Optional) Convert to grayscale for better OCR accuracy
     gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
@@ -106,7 +108,9 @@ def passenger_cnt(frame: np.ndarray | None = None) -> int:
     """
     if frame is None:
         frame = read_screenshot()
-
+    # if someone passed us a PIL Image, turn it into an ndarray
+    if isinstance(frame, Image.Image):
+         frame = np.array(frame)
     x, y, w, h = COUNTER_ROI
     roi = frame[y:y + h, x:x + w]
 

@@ -1,192 +1,272 @@
+from __future__ import annotations
+
+from actions.macro_definition import Verb, PAction, PoolItem, Speed, Reward
+from actions.action_execution import execute_action
+from actions.build_action_space import build_action_space
+import reward_function as rt
+from vision.perception import (
+    screenshot_game_area,
+    perceive,
+    connect_stations,
+)
+import time
 import pyautogui
-from collections import defaultdict
-import networkx as nx
-from station_detector import annotate_stations
-from line_detector import annotate_lines
-from context_classification_tools.ContextClassifier.context_classifier import classify_context
-from context_classification_tools.ContextClassifier.ocr import passenger_cnt
-from actions.macro_definition import (Verb, PAction, Speed, Reward)
+import numpy as np
+from pynput import mouse
+from typing import Any, Callable, Tuple
+import threading
+
 
 class MiniMetroEnv:
     def __init__(self):
-        self.lines = {}
         self.world = {}
+        self.last_action = None
+        self.lines: dict = {}
+        self.connected_pairs: set[tuple[int, int]] = set()
+        self.assets = {
+            "locomotive": 0,
+            "carriage": 0,
+            "bridge": 0,
+            "line": 0,
+            "interchange": 0,
+            "shinkansen": 0
+        }
+        self.screenshot, self.x0, self.y0 = screenshot_game_area()
         self.perceive()
-        self.connected_pairs = set()
-        self.actions: list[PAction] = self._build_action_space()
+        self._refresh_actions()  # fills self.actions + self.action_space_n
+        self.done = False
+
+    def _refresh_actions(self) -> None:
+        """(Re)compute the macro-action list and mirror it everywhere."""
+        self.actions: list[PAction] = build_action_space(self.world)
         self.action_space_n = len(self.actions)
+        self.world["actions"] = self.actions  # keep a copy in the world-dict
 
-    def screenshot_game_area(self):
-        x, y, width, height = 0, 25, 1280, 828
-        screenshot = pyautogui.screenshot(region=(x, y, width, height))
-        return screenshot, x, y
+    def perceive(self) -> None:
+        """Grab a new screenshot and update `self.world` in-place."""
+        self.screenshot, self.world = perceive(self.assets)
+        self._refresh_actions()  # action list may have changed after vision
 
-    PIXEL_TOL = 4  # “how close” counts as touching
+    def _nearest_station(self, x, y) -> int:
+        """Return the station id closest to pixel (abs coords)."""
+        gx, gy = x - self.x0, y - self.y0  # convert to game coords
+        stations = self.world["stations"]
+        dists = {
+            idx: (gx - c["centre"][0]) ** 2 + (gy - c["centre"][1]) ** 2
+            for idx, c in stations.items()
+        }
+        if not dists:  # vision could not find any stations yet
+            raise RuntimeError("No stations detected – run perceive() first?")
+        return min(dists, key=dists.get)
 
-    def _poly_touches_box(self, poly, box, tol=PIXEL_TOL) -> bool:
-        """
-        Quick-and-dirty spatial test:
-        `poly` : list[(x, y)] ––  vertices of the line segment
-        `box` : (x1, y1, x2, y2) –– station bbox
-        `tol` : allowable gap in px (helps when detections almost touch)
+    # ----------------------------------------------------------------------------
+    #  UI hit‑boxes (screen pixel coords) – tweak once then forget
+    # ----------------------------------------------------------------------------
+    # These defaults work for a 1920×1080 full‑screen game window.  If your layout
+    # is different, adjust the numbers or compute them at runtime.
+    _PAUSE_BTN = (1860, 20, 1900, 60)
+    _SPEED_BTNS = {
+        Speed.PAUSE: (1700, 20, 1740, 60),
+        Speed.NORMAL: (1745, 20, 1785, 60),
+        Speed.FASTER: (1790, 20, 1830, 60),
+    }
+    _REWARD_BTNS = {
+        Reward.LEFT: (760, 340, 960, 540),
+        Reward.CENTRE: (960, 340, 1160, 540),
+        Reward.RIGHT: (1160, 340, 1360, 540),
+    }
+    # pool slots: six icons bottom‑left; update if you use another skin
+    _POOL_SLOTS = {i: (40 + i * 60, 1000, 100 + i * 60, 1060) for i in range(6)}
 
-        Returns True if *any* vertex falls inside the slightly enlarged box.
-        """
+    # utility -------------------------------------------------------------
+
+    def _inside(self, box: Tuple[int, int, int, int], x: int, y: int) -> bool:
         x1, y1, x2, y2 = box
-        x1, y1, x2, y2 = x1 - tol, y1 - tol, x2 + tol, y2 + tol
-        for x, y in poly:
-            if x1 <= x <= x2 and y1 <= y <= y2:
-                return True
-        return False
+        return x1 <= x <= x2 and y1 <= y <= y2
 
-    # ─────────────────────────────────────────────────────────────────────
-    # 1. Build a topological MultiGraph enriched with shapes & colours
-    # ─────────────────────────────────────────────────────────────────────
-    def connect_stations(
-            self,
-            boxes: list[tuple[int, int, int, int]],
-            polys: list[list[tuple[int, int]]],
-            colours: list[str],
-            shapes: list[str],
-    ) -> nx.MultiGraph:
+    def _euclid(self, p, q):
+        return ((p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2) ** 0.5
+
+    # ----------------------------------------------------------------------------
+    #  Patch method – add to MiniMetroEnv
+    # ----------------------------------------------------------------------------
+    # ──────────────────────────────────────────────────────────────────
+    #  Low-level helper: wait for a drag gesture
+    # ──────────────────────────────────────────────────────────────────
+    def _block_until_drag(self) -> dict[str, tuple[int, int]]:
         """
-        Parameters
-        ----------
-        boxes   : station bounding boxes                len = Nₛ
-        polys   : line-segment polygons                 len = Nₗ
-        colours : line colour for each polygon          len = Nₗ
-        shapes  : station shape label for each station  len = Nₛ
+        Wait until the user performs a *left-button* drag and return the
+        down/up positions, e.g. ``{"down": (x0, y0), "up": (x1, y1)}``.
 
-        Returns
-        -------
-        G : nx.MultiGraph
-            • Node attributes : bbox, centre, shape
-            • Edge attributes : colour  (one edge *per* segment)
+        Implementation details
+        ----------------------
+        • Uses ``pynput.mouse.Listener`` to capture low-level events on
+          all major OSes without the Tk dependency that `mouseinfo`
+          pulls in.
+        • A small Event is used to make the call blocking while keeping
+          the listener in its own thread.
         """
-        G = nx.MultiGraph()
+        down_pos: tuple[int, int] | None = None
+        up_pos:   tuple[int, int] | None = None
+        done = threading.Event()
 
-        # 1️⃣ add every station node
-        for idx, (box, shape) in enumerate(zip(boxes, shapes)):
-            x1, y1, x2, y2 = box
-            cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
-            G.add_node(
-                idx,
-                bbox=box,
-                centre=(cx, cy),
-                shape=shape,
-            )
+        def on_click(x: int, y: int, button: mouse.Button, pressed: bool):
+            nonlocal down_pos, up_pos
+            if button is not mouse.Button.left:
+                return None
 
-        # 2️⃣ group polygons by colour (helps readability; not strictly required)
-        same_colour = defaultdict(list)
-        for poly, col in zip(polys, colours):
-            same_colour[col].append(poly)
+            if pressed and down_pos is None:             # mouse-down
+                down_pos = (x, y)
+                return None
 
-        # 3️⃣ for every segment, connect all stations it touches
-        for colour, segments in same_colour.items():
-            for poly in segments:
-                touched = [
-                    idx
-                    for idx, box in enumerate(boxes)
-                    if self._poly_touches_box(poly, box)
-                ]
-                if len(touched) >= 2:  # segment links ≥2 stations
-                    for i in range(len(touched)):
-                        for j in range(i + 1, len(touched)):
-                            u, v = touched[i], touched[j]
-                            # MultiGraph ⇒ each call adds a *new* edge
-                            G.add_edge(u, v, colour=colour)
+            elif not pressed and down_pos is not None:   # mouse-up
+                up_pos = (x, y)
+                done.set()                               # unblock the main thread
+                return False                             # stop listener
+            return None
 
-        return G
+        # Start listener in a context-manager so it cleans up automatically
+        with mouse.Listener(on_click=on_click) as listener:
+            done.wait()          # blocks until Event is set in on_click
 
-    def perceive(self):
+        # At this point the listener has stopped and coordinates are set
+        assert down_pos is not None and up_pos is not None, "drag coords missing"
+        return {"down": down_pos, "up": up_pos}
+
+    def wait_for_human_action(self) -> int:
+        """Block until the human performs a *click* or *drag* and map it to
+        the corresponding PAction index in `self.actions`.  Supports every verb
+        emitted by build_action_space.py.
         """
-        Capture a fresh screenshot → run detectors → build a symbolic observation.
-        """
-        self.screenshot, self.x0, self.y0 = self.screenshot_game_area()
-        # ↓ helper now returns: (annot_img, bboxes, shapes)
-        annot_stations, boxes, station_shapes = annotate_stations(self.screenshot)
+        # ------------------------------------------------------------------
+        # 1. Raw gesture from OS
+        # ------------------------------------------------------------------
+        evt = self._block_until_drag()  # {'down':(x0,y0),'up':(x1,y1)}
+        down, up = evt["down"], evt["up"]
+        is_click = self._euclid(down, up) < 8  # <8 px ⇒ treat as click
 
-        # ↓ helper now returns: (annot_img, polygons, colours)
-        annot_lines, polygons, line_colours = annotate_lines(self.screenshot, conf=0.5, overlap=0.4)
+        # ------------------------------------------------------------------
+        # 2. Always start with a *fresh* symbolic world + action list
+        # ------------------------------------------------------------------
+        if not self.world.get("stations"):
+            self.perceive()
+        self._refresh_actions()
 
-        ctx, _ = classify_context(self.screenshot)
+        # helper to locate the first index satisfying predicate ----------------
+        def _find(pred: Callable[[Any], bool]) -> int | None:
+            for idx, act in enumerate(self.actions):
+                if pred(act):
+                    return idx
+            return None
 
-        graph = self.connect_stations(
-            boxes=boxes,
-            polys=polygons,
-            colours=line_colours,
-            shapes=station_shapes,
-        )
-        # 2. full node-attribute dump for quick lookup
-        stations = {
-            n: {
-                "bbox": data["bbox"],
-                "centre": data["centre"],
-                "shape": data["shape"],
-                "degree": graph.degree[n],
-            }
-            for n, data in graph.nodes(data=True)
-        }
-        # For every detected segment, remember which stations it touches
-        segments: list[dict] = []
-        for poly, colour in zip(polygons, line_colours):
-            seg_stations = [
-                idx
-                for idx, box in enumerate(boxes)
-                if self._poly_touches_box(poly, box)
-            ]
-            # For every detected segment, remember which stations it touches
-            # ➜ and the *exact coordinates* where the poly first meets each bbox
-            segments: list[dict] = []
-            for poly, colour in zip(polygons, line_colours):
-                touched: list[int] = []
-                endpoints: list[tuple[int, int]] = []
-                # walk through the poly’s vertices in drawing order
-                for vx, vy in poly:
-                    for idx, box in enumerate(boxes):
-                        if idx in touched:  # station already logged
-                            continue
-                        if self._poly_touches_box([(vx, vy)], box):
-                            touched.append(idx)
-                            endpoints.append((vx, vy))  # record contact point
-                            break  # go test next vertex
-                    if len(touched) == 2:  # got both ends
-                        break
+        # ------------------------------------------------------------------
+        # 3. CLICK – buttons, pool pick, selection
+        # ------------------------------------------------------------------
+        if is_click:
+            x, y = down
+            # Pause toggle --------------------------------------------------
+            if self._inside(self._PAUSE_BTN, x, y):
+                idx = _find(lambda a: isinstance(a, PAction) and a.verb is Verb.TOGGLE_PAUSE)
+                if idx is not None:
+                    return idx
 
-                segments.append(
-                    {
-                        "poly": poly,  # list[(x, y)]
-                        "colour": colour,  # line colour label
-                        "stations": touched,  # [u, v] (may be <2 if noisy)
-                        "endpoints": endpoints  # [(x1,y1), (x2,y2)]  ← NEW
-                    }
-                )
+            # Speed buttons -------------------------------------------------
+            for spd, box in self._SPEED_BTNS.items():
+                if self._inside(box, x, y):
+                    idx = _find(lambda a: isinstance(a, PAction) and a.verb is Verb.SET_SPEED and a.arg is spd)
+                    if idx is not None:
+                        return idx
 
-        unconnected_stations = [n for n, deg in graph.degree() if deg == 0]
-        passengers = passenger_cnt(self.screenshot)
-        self.world = {
-            "graph": graph,
-            "stations": stations,
-            "unconnected": unconnected_stations,
-            "segments": segments,
-            "context": ctx,
-            "passenger": passengers
-        }
+            # Weekly reward popup -------------------------------------------
+            for choice, box in self._REWARD_BTNS.items():
+                if self._inside(box, x, y):
+                    idx = _find(lambda a: isinstance(a, PAction) and a.verb is Verb.CHOOSE_REWARD and a.arg is choice)
+                    if idx is not None:
+                        return idx
 
+            # Pool *pick* ---------------------------------------------------
+            for pid, box in self._POOL_SLOTS.items():
+                if self._inside(box, x, y):
+                    idx = _find(
+                        lambda a: isinstance(a, PAction) and a.verb is Verb.PICK_POOL_ITEM and a.arg is PoolItem(pid))
+                    if idx is not None:
+                        return idx
 
+            # Station / line *selection* ------------------------------------
+            st = self._nearest_station(x, y)
+            if st is not None:
+                idx = _find(lambda a: isinstance(a, PAction) and a.verb is Verb.SELECT_STATION and a.arg == st)
+                if idx is not None:
+                    return idx
+            ln = getattr(self, "_nearest_line", lambda *_: None)(x, y, 20)
+            if ln is not None:
+                idx = _find(lambda a: isinstance(a, PAction) and a.verb is Verb.SELECT_LINE and a.arg == ln)
+                if idx is not None:
+                    return idx
 
+        # ------------------------------------------------------------------
+        # 4. DRAG – track or pool‑item drag
+        # ------------------------------------------------------------------
+        start_st = self._nearest_station(*down)
+        end_st = self._nearest_station(*up)
 
+        # Track drag station → station -------------------------------------
+        if start_st is not None and end_st is not None:
+            idx = _find(lambda a: isinstance(a,
+                                             PAction) and a.verb is Verb.DRAG_TRACK and a.arg == start_st and a.arg2 == end_st)
+            if idx is not None:
+                return idx
+
+        # Pool‑item drag ----------------------------------------------------
+        pool_id = None
+        for pid, box in self._POOL_SLOTS.items():
+            if self._inside(box, *down):
+                pool_id = PoolItem(pid)
+                break
+        if pool_id is not None:
+            # → station
+            if end_st is not None:
+                idx = _find(lambda a: isinstance(a,
+                                                 PAction) and a.verb is Verb.DRAG_POOL_ITEM and a.arg == pool_id and a.arg2 == end_st)
+                if idx is not None:
+                    return idx
+            # → segment (line body)
+            seg = getattr(self, "_nearest_segment", lambda *_: None)(*up, 15)
+            if seg is not None:
+                idx = _find(lambda a: isinstance(a,
+                                                 PAction) and a.verb is Verb.DRAG_POOL_ITEM and a.arg == pool_id and a.arg2 == seg)
+                if idx is not None:
+                    return idx
+
+        # ------------------------------------------------------------------
+        # 5. Fallback – no valid action found
+        # ------------------------------------------------------------------
+        print("[Env] Human gesture not in action space; try again.")
+        # Refresh and recurse (rare)
+        self._refresh_actions()
+        return self.wait_for_human_action()
+
+    def action_index(self, station_A: int, station_B: int) -> int:
+        """Map a (station, station) pair to the corresponding DRAG_TRACK action."""
+        for i, act in enumerate(self.actions):
+            if act.verb == Verb.DRAG_TRACK:
+                u, v = act.arg  # that helper stores a tuple
+                if {u, v} == {station_A, station_B}:
+                    return i
+        # fallback → NO-OP
+        return next(i for i, a in enumerate(self.actions) if a.verb is Verb.NO_OP)
 
     def _compute_reward(self) -> float:
-        """+1 the first time a specific pair is connected, else 0."""
-        if not self.actions:
-            return 0.0
-        u, v = self.actions[-1]
-        pair = tuple(sorted((u, v)))
-        if pair in self.connected_pairs:
-            return 0.0
-        self.connected_pairs.add(pair)
-        return 1.0
+        prev = getattr(self, "prev_passengers", 0)
+        # total_reward returns (reward, new_prev_passengers)
+        rew, new_prev = rt.total_reward(
+                self.world,
+                prev_passengers = prev,
+        )
+
+        # stash for next time and return scalar
+        self.prev_passengers = new_prev
+        return rew
 
     def step(self, action_idx):
         """
@@ -201,7 +281,8 @@ class MiniMetroEnv:
         done     : bool          # episode-termination flag
         info     : dict          # optional debug information
         """
-        self._execute_action(action_idx)
+        execute_action(self, action_idx)
+        self.last_action = self.actions[action_idx]
         self.perceive()
 
         obs_next = self.world
@@ -221,7 +302,13 @@ class MiniMetroEnv:
             """
             # take a fresh screenshot and (re-)build symbolic state
             self.perceive()
-            return self.world
+            self.connected_pairs.clear()
+            obs_next = self.world
+            reward = self._compute_reward()
+            done = self.world["context"] == "GAME_OVER"
+
+            info = {}
+            return obs_next, reward, done, info
 
 
 
