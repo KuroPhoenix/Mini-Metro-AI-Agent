@@ -38,7 +38,7 @@ def _get_model() -> "inference.Model":
     """Return a cached Roboflow model instance (download on first use)."""
     global _model
     if _model is None:
-        _model = inference.get_model("mini-metro-line-detect-v2/1")
+        _model = inference.get_model("mini-metro-line-detect-v2/2")
     return _model
 
 
