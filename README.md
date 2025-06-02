@@ -174,7 +174,7 @@ Please open an issue first if you plan major changes.
 
 | Name            | Student ID | Contribution (weight)                                                     |
 | --------------- | ---------- | ------------------------------------------------------------------------- |
-| **謝嘉宸 (Harry)** | 112550019  | 80 % – idea, perception, actions, RL pipeline, reward, env, repo & slides |
+| **謝嘉宸** | 112550019  | 80 % – idea, perception, actions, RL pipeline, reward, env, repo & slides |
 | **楊睿宸**         | 112550049  | 10 % – context/OCR classifiers, DQN baseline                              |
 | **陳昱瑋**         | 112550041  | 10 % – traditional baseline, line detector                                |
 
