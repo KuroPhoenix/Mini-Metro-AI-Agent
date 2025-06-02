@@ -6,3 +6,6 @@ use context_classifier.py
 2. when every time a window of the cropped image shows, you can press enter to keep going
 
 3. mind the location of stored screenshot
+
+
+# CNNContextClassifier has functionality but is not currently used in mechanism.

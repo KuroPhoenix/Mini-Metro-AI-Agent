@@ -19,9 +19,3 @@ class MiniMetroRLAgent:
         predict = self.q_table[state][action]
         target = reward + self.gamma * np.max(self.q_table[next_state])
         self.q_table[state][action] += self.alpha * (target - predict)
-
-    def save(self, filename="q_table.npy"):
-        np.save(filename, dict(self.q_table))
-
-    def load(self, filename="q_table.npy"):
-        self.q_table = defaultdict(lambda: np.zeros(len(self.actions)), np.load(filename, allow_pickle=True).item())
