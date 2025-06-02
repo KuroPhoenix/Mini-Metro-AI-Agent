@@ -6,35 +6,43 @@ import time
 import math
 from collections import defaultdict
 
-class MiniMetroRLAgent:
-    def __init__(self, actions):
-        self.q_table = defaultdict(lambda: np.zeros(len(actions)))
-        self.actions = actions
-        self.alpha = 0.1
-        self.gamma = 0.99
-        self.epsilon = 0.2
-
-    def choose_action(self, state):
-        if np.random.rand() < self.epsilon:
-            return random.choice(range(len(self.actions)))
-        return np.argmax(self.q_table[state])
-
-    def update(self, state, action, reward, next_state):
-        predict = self.q_table[state][action]
-        target = reward + self.gamma * np.max(self.q_table[next_state])
-        self.q_table[state][action] += self.alpha * (target - predict)
-
 class MiniMetroEnv:
     def __init__(self):
         self.known_stations = {'circle': set(), 'triangle': set(), 'square': set()}
-         # 記錄已連線過的車站對
-        self.connected_pairs = set()  
-       
+        self.connected_pairs = set()
 
     def screenshot_game_area(self):
         x, y, width, height = 90, 85, 1280, 800
         screenshot = pyautogui.screenshot(region=(x, y, width, height))
         return screenshot, x, y
+
+    def detect_weekly_reward_screen(self):
+        screenshot, offset_x, offset_y = self.screenshot_game_area()
+        img = cv2.cvtColor(np.array(screenshot), cv2.COLOR_RGB2BGR)
+
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        template = cv2.imread('reward_template.png', 0)
+        res = cv2.matchTemplate(gray, template, cv2.TM_CCOEFF_NORMED)
+        threshold = 0.8
+        loc = np.where(res >= threshold)
+
+        if len(loc[0]) > 0:
+            # 找到匹配，返回第一個匹配的位置
+            pt = (loc[1][0] + offset_x, loc[0][0] + offset_y)
+            return pt
+        else:
+            return None
+
+    def click_weekly_reward(self):
+        pt = self.detect_weekly_reward_screen()
+        if pt:
+            # 模擬點擊獎勵選項
+            pyautogui.moveTo(pt[0], pt[1], duration=0.3)
+            pyautogui.click()
+            print("已選擇每週獎勵。")
+            time.sleep(1)  # 等待畫面更新
+        else:
+            print("未偵測到每週獎勵畫面。")
 
     def distance(self, p1, p2):
         return math.hypot(p1[0] - p2[0], p1[1] - p2[1])
@@ -46,26 +54,53 @@ class MiniMetroEnv:
                 deduped.append(p)
         return deduped
 
+    def classify_shape(self, cnt):
+        area = cv2.contourArea(cnt)
+        perimeter = cv2.arcLength(cnt, True)
+        if area == 0 or perimeter == 0:
+            return None
+        approx = cv2.approxPolyDP(cnt, 0.02 * perimeter, True)
+        circularity = 4 * math.pi * area / (perimeter * perimeter)
+
+        if len(approx) == 3:
+            return 'triangle'
+        elif len(approx) == 4:
+            pts = approx.reshape(4, 2)
+            def angle(pt1, pt2, pt3):
+                v1 = pt1 - pt2
+                v2 = pt3 - pt2
+                cos_angle = np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
+                return np.arccos(cos_angle) * 180 / np.pi
+            angles = [angle(pts[i], pts[(i+1)%4], pts[(i+2)%4]) for i in range(4)]
+            if all(80 < a < 100 for a in angles):
+                return 'square'
+        elif 0.75 < circularity < 1.2 and len(approx) > 4:
+            return 'circle'
+        return None
+
     def find_shapes(self):
-        min_area = 2000
+        min_area = 1500
         max_area = 5000
 
         screenshot, offset_x, offset_y = self.screenshot_game_area()
         img = cv2.cvtColor(np.array(screenshot), cv2.COLOR_RGB2BGR)
+
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         blurred = cv2.GaussianBlur(gray, (5, 5), 0)
         _, thresh = cv2.threshold(blurred, 200, 255, cv2.THRESH_BINARY)
 
-        # 找三角形和正方形
         contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        triangles, squares = [], []
+        circles, triangles, squares = [], [], []
 
         for cnt in contours:
             area = cv2.contourArea(cnt)
             if area < min_area or area > max_area:
                 continue
 
-            approx = cv2.approxPolyDP(cnt, 0.04 * cv2.arcLength(cnt, True), True)
+            shape = self.classify_shape(cnt)
+            if shape is None:
+                continue
+
             M = cv2.moments(cnt)
             if M["m00"] == 0:
                 continue
@@ -73,124 +108,50 @@ class MiniMetroEnv:
             y = int(M["m01"] / M["m00"]) + offset_y
             center = (x, y)
 
-            if len(approx) == 3:
+            if shape == 'circle':
+                circles.append(center)
+            elif shape == 'triangle':
                 triangles.append(center)
-            elif len(approx) == 4:
+            elif shape == 'square':
                 squares.append(center)
 
-        # 用 HoughCircles 找圓形
-        circles = []
-        circles_cv = cv2.HoughCircles(
-            gray,
-            cv2.HOUGH_GRADIENT,
-            dp=1.2,
-            minDist=30,
-            param1=50,
-            param2=30,
-            minRadius=15,
-            maxRadius=40
-        )
-        if circles_cv is not None:
-            circles_cv = np.round(circles_cv[0, :]).astype("int")
-            for (x, y, r) in circles_cv:
-                # 確認圓形半徑及中心在遊戲區域範圍
-                if min_area < math.pi * r * r < max_area:
-                    circles.append((x + offset_x, y + offset_y))
-
-        # 去除重複點
         circles = self.deduplicate(circles)
         triangles = self.deduplicate(triangles)
         squares = self.deduplicate(squares)
 
         return circles, triangles, squares
 
-
     def connect_station_auto(self):
         circles, triangles, squares = self.find_shapes()
-
-        print(f"Detected circles: {len(circles)} at {circles}")
-        print(f"Detected triangles: {len(triangles)} at {triangles}")
-        print(f"Detected squares: {len(squares)} at {squares}")
-
-        new_circles = [c for c in circles if c not in self.known_stations['circle']]
-        new_triangles = [t for t in triangles if t not in self.known_stations['triangle']]
-        new_squares = [s for s in squares if s not in self.known_stations['square']]
-
-        print(f"New circles: {len(new_circles)} at {new_circles}")
-        print(f"New triangles: {len(new_triangles)} at {new_triangles}")
-        print(f"New squares: {len(new_squares)} at {new_squares}")
-
         self.known_stations['circle'].update(circles)
         self.known_stations['triangle'].update(triangles)
         self.known_stations['square'].update(squares)
 
+        all_stations = list(self.known_stations['circle'] | self.known_stations['triangle'] | self.known_stations['square'])
+        all_routes = set(tuple(sorted(pair)) for pair in self.connected_pairs)
+
         candidates = []
+        for station in all_stations:
+            for connected_station in all_stations:
+                if station != connected_station:
+                    route = tuple(sorted([station, connected_station]))
+                    if route not in all_routes:
+                        candidates.append((station, connected_station))
 
-        # 新站優先
-        for c in new_circles:
-            for t in triangles:
-                candidates.append((c, t))
-            for s in squares:
-                candidates.append((c, s))
-
-        for t in new_triangles:
-            for c in circles:
-                candidates.append((t, c))
-            for s in squares:
-                candidates.append((t, s))
-
-        for s in new_squares:
-            for c in circles:
-                candidates.append((s, c))
-            for t in triangles:
-                candidates.append((s, t))
-
-        # 若沒新站候選，加入所有包含圓形的組合
-        if not candidates:
-            for c in circles:
-                for t in triangles:
-                    candidates.append((c, t))
-                for s in squares:
-                    candidates.append((c, s))
-
-            for t in triangles:
-                for s in squares:
-                    candidates.append((t, s))
-
-        # 過濾已連線組合
-        candidates = [pair for pair in candidates if frozenset(pair) not in self.connected_pairs]
-
-        print(f"Candidates after filtering duplicates: {len(candidates)}")
-        for pair in candidates:
-            dist = self.distance(pair[0], pair[1])
-            contains_circle = any(station in self.known_stations['circle'] for station in pair)
-            print(f"Pair {pair} distance: {dist:.1f}, contains_circle: {contains_circle}")
-
-        if not candidates:
-            print("No line co")
-            return
-
-        # 優先挑包含圓形組合中距離最大的
-        circle_pairs = [pair for pair in candidates if any(station in self.known_stations['circle'] for station in pair)]
-
-        if circle_pairs:
-            station_A, station_B = max(circle_pairs, key=lambda pair: self.distance(pair[0], pair[1]))
-            print(f"Selected circle pair: {station_A} → {station_B}")
-        else:
+        if candidates:
             station_A, station_B = max(candidates, key=lambda pair: self.distance(pair[0], pair[1]))
-            print(f"Selected non-circle pair: {station_A} → {station_B}")
+            self.connected_pairs.add(frozenset([station_A, station_B]))
 
-        self.connected_pairs.add(frozenset([station_A, station_B]))
+            pyautogui.moveTo(*station_A, duration=0.3)
+            pyautogui.mouseDown()
+            time.sleep(0.3)
+            pyautogui.moveTo(*station_B, duration=0.6)
+            time.sleep(0.2)
+            pyautogui.mouseUp()
 
-        pyautogui.moveTo(*station_A, duration=0.3)
-        pyautogui.mouseDown()
-        time.sleep(0.3)
-        pyautogui.moveTo(*station_B, duration=0.6)
-        time.sleep(0.2)
-        pyautogui.mouseUp()
-
-        print(f"Connected: {station_A} → {station_B}")
-
+            print(f"Connected: {station_A} → {station_B}")
+        else:
+            print("No valid connection found.")
 
     def reset(self):
         self.connected_pairs.clear()
@@ -201,5 +162,3 @@ class MiniMetroEnv:
         reward = 1
         done = False
         return None, reward, done
-
-
