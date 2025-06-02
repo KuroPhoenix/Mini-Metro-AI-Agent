@@ -6,7 +6,7 @@ env = MiniMetroEnv()
 EPISODES = 10
 
 for episode in range(EPISODES):
-    print(f"\n🎮 Episode {episode + 1}")
+    print(f"\n Episode {episode + 1}")
     env.reset()
     for step in range(4):
         action_idx = 0
