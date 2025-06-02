@@ -1,0 +1,13 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 7
+names: ['BLUE LINE', 'DARK GREEN LINE', 'ORANGE LINE', 'ORANGE YELLOW LINE', 'PURPLE LINE', 'RED LINE', 'YELLOW LINE']
+
+roboflow:
+  workspace: minimetro
+  project: mini-metro-line-detect-v2
+  version: 3
+  license: Public Domain
+  url: https://universe.roboflow.com/minimetro/mini-metro-line-detect-v2/dataset/3

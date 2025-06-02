@@ -118,6 +118,9 @@ def build_action_space(world) -> List[PAction]:
         for st_id in seg.get("stations", []):
             actions.append(PAction(Verb.DISCONNECT_STATION, st_id, seg_id))
 
+    for station in stations:
+        for station_dst in stations:
+            actions.append(PAction(Verb.NEW_LINE, station, station_dst))
     # -------------------------------------------------------------------
     # 2️⃣  Pool manipulation – pick and drag upgrades
     # -------------------------------------------------------------------

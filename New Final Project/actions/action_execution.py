@@ -1,5 +1,7 @@
 import math
 import time
+from lib2to3.pgen2.token import NEWLINE
+
 import pyautogui
 from typing import List, TYPE_CHECKING
 from vision.perception import count_river_crossings
@@ -155,6 +157,11 @@ def execute_action(env: "MiniMetroEnv", action_idx: int) -> None:
         pyautogui.dragTo(*dst_xy, duration=0.4, button="left")
 
         return
+
+    if act.verb == NEWLINE:
+        src = act.arg
+        dst = act.arg2
+
 
     # 4️⃣  Fallback -----------------------------------------------------------
     #print(f"[TODO] verb {act.verb} not yet implemented.")

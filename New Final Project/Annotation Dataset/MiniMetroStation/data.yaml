@@ -1,0 +1,13 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 10
+names: ['CIRCLE', 'CROSS', 'DIAMOND', 'GEM', 'PENTAGON', 'SQUARE', 'STAR', 'TRIANGLE', 'TRIAngle', 'WEDGE']
+
+roboflow:
+  workspace: minimetro
+  project: minimetrostation
+  version: 1
+  license: Private
+  url: https://app.roboflow.com/minimetro/minimetrostation/1

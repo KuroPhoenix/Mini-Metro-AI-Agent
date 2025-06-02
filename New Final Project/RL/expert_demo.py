@@ -52,5 +52,5 @@ for episode in range(3):                                    # you decide how man
         json.dump(trajectory, fp)
     print("saved trajectory")
 
-agent.save("q_table_from_human.npy")
-print("✅  Q-table updated with your demonstrations")
+# agent.save("q_table_from_human.npy")
+# print("✅  Q-table updated with your demonstrations")

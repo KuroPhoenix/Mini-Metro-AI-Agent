@@ -23,6 +23,7 @@ class Verb(IntEnum):
     SELECT_LINE       = 7          # arg = StationShape enum
     DRAG_TRACK        = 8          # arg = StationShape enum (target)
     DISCONNECT_STATION = 9
+    NEW_LINE           = 10
 
     # pool & upgrades
     PICK_POOL_ITEM    = 10         # arg = PoolItem enum
