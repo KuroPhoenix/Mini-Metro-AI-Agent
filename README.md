@@ -309,7 +309,7 @@ See our presentation slides for an exhaustive roadmap.
 
 > Cannot Launch MiniMetro after serpent setup and serpent generate? 
 
-:::info
+
 Have you activated MiniMetro Plugin?
 
 ```
@@ -321,7 +321,7 @@ serpent launch <Game_Name> #Launch Again
 :::
 
 > Cannot train ML model even though ML setup is complete
-:::info
+
 try
 ```
 # still **inside** the .venv_serpentai virtual-env
@@ -331,7 +331,7 @@ pip uninstall -y keras keras-nightly keras-preprocessing
 pip install "keras==2.0.8" "h5py<3"  # h5py 3.x needs newer TF
 ```
 then run classifier train again.
-:::
+
 ---
 
 ## Contributing
