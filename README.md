@@ -17,7 +17,7 @@ Reinforcement-learning agents that learn to play **[Mini Metro](https://dinopolo
 7. [Evaluation Metrics](#evaluation-metrics)
 8. [Results](#results)
 9. [Limitations & Future Work](#limitations--future-work)
-10.[FAQ](#FAQ)
+10. [FAQ](#FAQ)
 11. [Contributing](#contributing)
 12. [Team](#team)
 13. [Reference](#reference)
