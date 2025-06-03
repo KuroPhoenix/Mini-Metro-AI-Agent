@@ -49,22 +49,142 @@ Our goal is to **teach an RL agent to survive as long as possible**—maximising
 ## Project Structure (Please refer to /New Final Project) 
 
 ```
+├── Annotation Dataset
+│   ├── Mini Metro Line Detect v2
+│   │   ├── README.dataset.txt
+│   │   ├── README.roboflow.txt
+│   │   ├── data.yaml
+│   │   ├── test
+│   │   │   ├── images
+│   │   │   └── labels
+│   │   ├── train
+│   │   │   ├── images
+│   │   │   └── labels
+│   │   └── valid
+│   │       ├── images
+│   │       └── labels
+│   └── MiniMetroStation
+│       ├── README.roboflow.txt
+│       ├── data.yaml
+│       ├── test
+│       │   ├── images
+│       │   └── labels
+│       ├── train
+│       │   ├── images
+│       │   └── labels
+│       └── valid
+│           ├── images
+│           └── labels
+├── README.md
+├── RL
+│   ├── DAgger_train.py
+│   ├── __init__.py
+│   ├── __pycache__
+│   │   ├── __init__.cpython-311.pyc
+│   │   └── expert_demo.cpython-311.pyc
+│   ├── evaluate_agent.py
+│   ├── expert_demo.py
+│   ├── models_and_dataset.py
+│   └── policy.py
+├── ROI Capture
+│   ├── Determine_ROI.py
+│   ├── GM.png
+│   ├── GZ.jpg
+│   ├── HK.png
+│   ├── MOS.jpg
+│   ├── W2.png
+│   ├── debug_lines.png
+│   ├── debug_stations.png
+│   ├── frame_1747671460.1588988.png
+│   ├── frame_1747673116.118717.png
+│   ├── frame_1747706061.5737128.png
+│   └── test.py
+├── TODO.md
+├── Unused Code.md
+├── __pycache__
+│   ├── config.cpython-311.pyc
+│   ├── mini_metro_env.cpython-311.pyc
+│   ├── mini_metro_rl_agent.cpython-311.pyc
+│   └── reward_function.cpython-311.pyc
+├── actions
+│   ├── __init__.py
+│   ├── __pycache__
+│   │   ├── __init__.cpython-311.pyc
+│   │   ├── action_execution.cpython-311.pyc
+│   │   ├── build_action_space.cpython-311.pyc
+│   │   └── macro_definition.cpython-311.pyc
+│   ├── action_execution.py
+│   ├── build_action_space.py
+│   └── macro_definition.py
+├── config.py
+├── dqn_agent.py
+├── evaluate_dqn.py
+├── expert_dataset
+├── mini_metro_env.py
+├── mini_metro_rl_agent.py
+├── requirements.txt
+├── reward_function.py
+├── train_dqn.py
+└── vision
+    ├── __init__.py
+    ├── __pycache__
+    │   ├── __init__.cpython-311.pyc
+    │   ├── line_detector.cpython-311.pyc
+    │   ├── perception.cpython-311.pyc
+    │   ├── preprocess.cpython-311.pyc
+    │   └── station_detector.cpython-311.pyc
+    ├── context_classification_tools
+    │   ├── CNNContextClassifier
+    │   │   ├── CNN.py
+    │   │   ├── README.md
+    │   │   ├── TrainCNN
+    │   │   │   ├── CNN.csv
+    │   │   │   ├── CNN.py
+    │   │   │   ├── best_cnn_model.pth
+    │   │   │   ├── cnn_model.pth
+    │   │   │   ├── loss.png
+    │   │   │   ├── requirements.txt
+    │   │   │   ├── test_ans.csv
+    │   │   │   ├── test_performance_using_saved_model.py
+    │   │   │   ├── train_and_test_cnn.py
+    │   │   │   └── utils.py
+    │   │   ├── cnn_context_classification_model.pth
+    │   │   └── cnn_context_classifier.py
+    │   ├── ContextClassifier
+    │   │   ├── __init__.py
+    │   │   ├── __pycache__
+    │   │   │   ├── __init__.cpython-311.pyc
+    │   │   │   ├── context_classifier.cpython-311.pyc
+    │   │   │   └── ocr.cpython-311.pyc
+    │   │   ├── context.png
+    │   │   ├── context_classifier.py
+    │   │   ├── ocr.py
+    │   │   └── screenshotExamples
+    │   │       ├── 1_reward.png
+    │   │       └── gameplay.png
+    │   ├── README.md
+    │   ├── __init__.py
+    │   ├── __pycache__
+    │   │   └── __init__.cpython-311.pyc
+    │   ├── requirements.txt
+    │   └── spritex
+    │       ├── LICENSE
+    │       ├── README.md
+    │       ├── __init__.py
+    │       ├── bin
+    │       │   └── spritex
+    │       ├── editor
+    │       │   └── __init__.py
+    │       ├── install.sh
+    │       ├── requirements.txt
+    │       ├── setup.py
+    │       └── setup.py.bak
+    ├── line_detector.py
+    ├── perception.py
+    ├── preprocess.py
+    └── station_detector.py
 
-Mini-Metro-AI-Agent/
-├─ datasets/            # Roboflow exports + raw Serpent frames
-├─ models/              # Trained weights (RF-DETR, line-segmenter, policies)
-├─ rl/
-│  ├─ dagger.py         # Main training loop
-│  ├─ replay\_buffer.py
-│  └─ reward.py
-├─ serpent/             # Thin Serpent.AI wrapper to grab frames
-├─ utils/               # Misc helpers (masking, OCR, logging)
-├─ baseline/            # Baseline heuristic agent
-├─ scripts/
-│  ├─ run\_baseline.py
-│  ├─ train\_detector.sh
-│  └─ play\_with\_agent.py
-└─ requirements.txt
+
 
 ````
 
