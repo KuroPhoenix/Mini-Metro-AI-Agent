@@ -17,10 +17,11 @@ Reinforcement-learning agents that learn to play **[Mini Metro](https://dinopolo
 7. [Evaluation Metrics](#evaluation-metrics)
 8. [Results](#results)
 9. [Limitations & Future Work](#limitations--future-work)
-10. [Contributing](#contributing)
-11. [Team](#team)
-12. [Reference](#reference)
-13. [License](#license)
+10.[FAQ](#FAQ)
+11. [Contributing](#contributing)
+12. [Team](#team)
+13. [Reference](#reference)
+14. [License](#license)
 
 ---
 
@@ -71,7 +72,28 @@ Mini-Metro-AI-Agent/
 
 ---
 
-## Quick Start
+# Quick Start
+
+> Make sure you have the MiniMetro game locally in steam.
+
+## Serpent AI
+
+> Execute in root directory.
+
+### Serpent Commands
+
+Launch game
+```bash
+serpent launch MiniMetro
+```
+
+use AI agent
+```
+serpent play MiniMetro SerpentMiniMetro_RL_AgentGameAgent
+
+```
+
+## Approach 3
 
 ### 1. Clone & install
 
@@ -99,12 +121,13 @@ Set the game window to **1920 × 1080** for best detection accuracy.
 ### 4. Run the baseline bot
 
 ```bash
-python scripts/run_baseline.py
+#in baseline_agent/
+python train_agent.py
 ```
 
 ### 5.Examine Detection Model Results
 
-run `test.py` under New Final Project/ROI Capture/. Make sure to replace our Roboflow model with your custom-made model.
+run `test.py` under New Final Project/ROI Capture/. Make sure to replace our Roboflow model with your custom-made model. Also, you may set the image path to whichever image you like.
 
 
 ### 6. Train the agent with your expert plays
@@ -162,6 +185,34 @@ As of yet, our code cannot fully capture user's movements and map them to action
 See our presentation slides for an exhaustive roadmap.
 
 ---
+## FAQ
+
+> Cannot Launch MiniMetro after serpent setup and serpent generate? 
+
+:::info
+Have you activated MiniMetro Plugin?
+
+```
+serpent pluigins  # Check for any inactive plugins
+serpent activate <PluginName> #Activate Plugin
+serpent launch <Game_Name> #Launch Again
+```
+
+:::
+
+> Cannot train ML model even though ML setup is complete
+:::info
+try
+```
+# still **inside** the .venv_serpentai virtual-env
+pip uninstall -y keras keras-nightly keras-preprocessing
+
+# install versions contemporary with TF 1.4
+pip install "keras==2.0.8" "h5py<3"  # h5py 3.x needs newer TF
+```
+then run classifier train again.
+:::
+---
 
 ## Contributing
 
@@ -189,6 +240,7 @@ Please open an issue first if you plan major changes.
 * OpenCV – [https://opencv.org](https://opencv.org)
 * DAgger algorithm – [https://imitation.readthedocs.io/en/latest/algorithms/dagger.html](https://imitation.readthedocs.io/en/latest/algorithms/dagger.html)
 * [Project slides](./docs/AI_Final_Project.pdf) for a full deep-dive.&#x20;
+* [Project idea & blackboard & implementation dump](https://hackmd.io/rZPy2PaqRl6j4fMbY8c5Lg) for in-depth information about our initial take with SerpentAI (which failed spectacularly)
 
 ---
 
